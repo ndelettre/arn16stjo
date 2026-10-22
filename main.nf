@@ -1,7 +1,7 @@
 #!/usr/bin/env nextflow
 /*
 ========================================================================================
-    ARN16StJo — PIPELINE 16S FULL-LENGTH NANOPORE (EMU)  v0.2.2
+    ARN16StJo — PIPELINE 16S FULL-LENGTH NANOPORE (EMU)  v0.3.0
     Compatible EPI2ME | Nextflow DSL2
 ========================================================================================
     WORKFLOW :
@@ -12,8 +12,9 @@
                → SUBSAMPLE (au plus --emu_max_reads reads par échantillon)
                → EMU_ABUNDANCE → EMU_COMBINE (tables espèce / genre / famille)
                                → SPIKE_IN (reads du contrôle interne Zymo)
+       → REPORT (rapport HTML unique : QC, hôte, contrôle interne, abondances)
 
-    Étapes à venir : rapport HTML, mode recherche (diversité).
+    Étape à venir : mode recherche (diversité).
 ========================================================================================
 */
 
@@ -35,6 +36,7 @@ include { SUBSAMPLE                     } from './modules/subsample.nf'     // S
 include { EMU_ABUNDANCE                 } from './modules/emu_abundance.nf' // Classification EMU
 include { EMU_COMBINE                   } from './modules/emu_combine.nf'   // Tables multi-échantillons
 include { SPIKE_IN                      } from './modules/spike_in.nf'      // Contrôle interne Zymo
+include { REPORT                        } from './modules/report.nf'        // Rapport HTML
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WORKFLOW PRINCIPAL
@@ -56,7 +58,7 @@ workflow {
     // ── Bannière de démarrage ─────────────────────────────────────────────────
     log.info """
     ╔══════════════════════════════════════════════════════════╗
-    ║     ARN16StJo - 16S FULL-LENGTH NANOPORE (EMU)  v0.2.2   ║
+    ║     ARN16StJo - 16S FULL-LENGTH NANOPORE (EMU)  v0.3.0   ║
     ╚══════════════════════════════════════════════════════════╝
       Dossier FASTQ   : ${params.fastq_dir}
       Dossier sortie  : ${params.outdir}
@@ -181,7 +183,8 @@ workflow {
         }
 
         HOST_FILTER(CHOPPER.out.reads, ch_host_index)
-        ch_reads_emu = HOST_FILTER.out.reads
+        ch_reads_emu   = HOST_FILTER.out.reads
+        ch_host_stats  = HOST_FILTER.out.stats.map { _sample_id, stats -> stats }
 
         if (!host_reference.endsWith('.mmi')) {
             HOST_INDEX_CLEANUP(ch_host_index, HOST_FILTER.out.stats.collect())
@@ -194,7 +197,8 @@ workflow {
                          sort: { stats -> stats.name }, storeDir: "${params.resultsdir}/host")
     } else {
         log.warn "Aucun génome hôte (--host_reference) : les reads de l'hôte ne sont ni comptés ni retirés."
-        ch_reads_emu = CHOPPER.out.reads
+        ch_reads_emu  = CHOPPER.out.reads
+        ch_host_stats = channel.empty()
     }
 
     // ── Sous-échantillonnage avant EMU ────────────────────────────────────────
@@ -222,6 +226,24 @@ workflow {
     if (spike_in) {
         SPIKE_IN(ch_abundance_tables, spike_in.name, spike_in.species.join(','))
     }
+
+    // ── Rapport HTML ──────────────────────────────────────────────────────────
+    // LEÇON : .mix() fusionne les fichiers de résultats de toutes les étapes,
+    // .collect() attend qu'ils soient tous produits : le rapport est généré
+    // une seule fois, à la fin, avec tous les échantillons.
+    ch_report_files = NANOSTAT_RAW.out.stats.map { _sample_id, stats -> stats }
+        .mix(NANOSTAT_FILTERED.out.stats.map { _sample_id, stats -> stats })
+        .mix(ch_host_stats)
+        .mix(SUBSAMPLE.out.stats.map { _sample_id, stats -> stats })
+        .mix(EMU_ABUNDANCE.out.abundance.map { _sample_id, table -> table })
+        .collect()
+
+    REPORT(
+        ch_report_files,
+        file("${projectDir}/assets/logo_hpsj.webp", checkIfExists: true),
+        spike_in ? spike_in.name : '',
+        spike_in ? spike_in.species.join(',') : ''
+    )
 
     // ── Résumé de fin de pipeline (succès ou échec) ───────────────────────────
     // LEÇON : à l'intérieur du bloc onComplete, les noms `workflow` et `params`
