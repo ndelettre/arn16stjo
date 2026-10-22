@@ -77,7 +77,7 @@
                     "type": "string",
                     "format": "directory-path",
                     "description": "Dossier de la base EMU (contenant species_taxid.fasta et taxonomy.tsv). Par défaut : rrnDB v5.10 + NCBI mars 2026.",
-                    "default": "/data/emu_db/emu_db_mar2026",
+                    "default": "/data/databases/emu_db/emu_db_mar2026",
                     "fa_icon": "fas fa-database"
                 },
                 "emu_max_reads": {
