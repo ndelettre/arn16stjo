@@ -62,7 +62,7 @@
                     "type": "string",
                     "format": "file-path",
                     "description": "Génome de l'hôte : FASTA (.fa, .fasta, .fna, éventuellement .gz) ou index minimap2 (.mmi). GRCh38 par défaut. Laisser vide pour ne pas rechercher de reads hôte.",
-                    "default": "/data/host/GRCh38.fa.gz",
+                    "default": "/data/databases/host/GRCh38.fa.gz",
                     "fa_icon": "fas fa-dna"
                 }
             }
