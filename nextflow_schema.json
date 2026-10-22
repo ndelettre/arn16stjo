@@ -62,7 +62,7 @@
                     "type": "string",
                     "format": "file-path",
                     "description": "Génome de l'hôte : FASTA (.fa, .fasta, .fna, éventuellement .gz) ou index minimap2 (.mmi). GRCh38 par défaut. Laisser vide pour ne pas rechercher de reads hôte.",
-                    "default": "/data/host/GRCh38.fa.gz",
+                    "default": "/data/databases/host/GRCh38.fa.gz",
                     "fa_icon": "fas fa-dna"
                 }
             }
@@ -77,7 +77,7 @@
                     "type": "string",
                     "format": "directory-path",
                     "description": "Dossier de la base EMU (contenant species_taxid.fasta et taxonomy.tsv). Par défaut : rrnDB v5.10 + NCBI mars 2026.",
-                    "default": "/data/emu_db/emu_db_mar2026",
+                    "default": "/data/databases/emu_db/emu_db_mar2026",
                     "fa_icon": "fas fa-database"
                 },
                 "emu_max_reads": {
