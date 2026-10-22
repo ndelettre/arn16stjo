@@ -43,16 +43,16 @@ HOST_INDEX (index du génome hôte, une fois au début) ──→ HOST_FILTER �
 
 ```bash
 # Génome humain GRCh38 (version "no-alt analysis set", recommandée pour l'alignement)
-sudo mkdir -p /data/host && sudo chown $USER /data/host
-wget -O /data/host/GRCh38.fa.gz \
+sudo mkdir -p /data/databases/host && sudo chown $USER /data/databases/host
+wget -O /data/databases/host/GRCh38.fa.gz \
     https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/001/405/GCA_000001405.15_GRCh38/seqs_for_alignment_pipelines.ucsc_ids/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.gz
 
 # Base EMU : rrnDB v5.10 + NCBI mars 2026 (fournie dans le dépôt GitHub d'EMU)
-sudo mkdir -p /data/emu_db && sudo chown $USER /data/emu_db
-cd /data/emu_db
+sudo mkdir -p /data/databases/emu_db && sudo chown $USER /data/databases/emu_db
+cd /data/databases/emu_db
 wget https://github.com/treangenlab/emu/raw/master/emu_database/emu_db_mar2026.zip
 unzip emu_db_mar2026.zip && rm emu_db_mar2026.zip
-# → /data/emu_db/emu_db_mar2026/{species_taxid.fasta, taxonomy.tsv}
+# → /data/databases/emu_db/emu_db_mar2026/{species_taxid.fasta, taxonomy.tsv}
 ```
 
 Le génome de l'hôte peut être fourni :
@@ -101,8 +101,8 @@ Deux fichiers donnant le même nom d'échantillon (ex. `S1.fastq` et `S1.fastq.g
 | `--min_length` | `1200` | Longueur minimale des reads (bp) |
 | `--max_length` | `1800` | Longueur maximale des reads (bp) |
 | `--min_quality` | `10` | Q-score moyen minimal des reads |
-| `--host_reference` | `/data/host/GRCh38.fa.gz` | Génome de l'hôte (FASTA ou `.mmi`) ; vide ou `false` = étape ignorée |
-| `--emu_db` | `/data/emu_db/emu_db_mar2026` | Dossier de la base EMU |
+| `--host_reference` | `/data/databases/host/GRCh38.fa.gz` | Génome de l'hôte (FASTA ou `.mmi`) ; vide ou `false` = étape ignorée |
+| `--emu_db` | `/data/databases/emu_db/emu_db_mar2026` | Dossier de la base EMU |
 | `--emu_max_reads` | `20000` | Reads analysés par EMU au maximum, tirés au hasard (0 = tous) |
 | `--emu_min_abundance` | `0.0001` | Seuil interne d'EMU (0,01 %) |
 | `--emu_keep_read_assignments` | `false` | Table d'attribution read → espèce |

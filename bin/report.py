@@ -27,7 +27,7 @@ Usage :
     report.py --input-dir . --output rapport_16S.html --logo logo.webp \
         --version 0.3.0 --spike-name "Spike-in Control II (D6321)" \
         --spike-species "Truepera radiovictrix,Imtechella halotolerans,..." \
-        --param "Base EMU=/data/emu_db/emu_db_mar2026" --tool "EMU=3.6.2"
+        --param "Base EMU=/data/databases/emu_db/emu_db_mar2026" --tool "EMU=3.6.2"
 """
 
 import argparse
