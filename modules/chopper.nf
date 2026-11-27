@@ -12,7 +12,8 @@
     Sorties :
     - {sample_id}_filtered.fastq    → reads conservés (non compressé : fichier
                                       intermédiaire, rien n'est compressé entre
-                                      les étapes du pipeline)
+                                      les étapes du pipeline). L'en-tête de chaque
+                                      read est réduit à son identifiant.
     - {sample_id}_chopper.log       → "Kept X reads out of Y reads"
 ========================================================================================
 */
@@ -41,6 +42,13 @@ process CHOPPER {
     // Son bilan ("Kept X reads out of Y reads") part sur stderr : on le
     // redirige dans le fichier log.
     //
+    // LEÇON : Dorado ajoute dans l'en-tête de chaque read ~6,5 Ko de balises
+    // (qualité, canal, heure, modèle...) : 2/3 de la taille du FASTQ pour des
+    // reads de ~1 500 bp. Aucune étape suivante ne s'en sert (NanoStat lit les
+    // séquences et qualités ; minimap2, le filtre hôte et EMU n'utilisent que
+    // l'identifiant) : awk ne garde que l'identifiant ($1 = texte avant le
+    // premier espace ou tabulation), ce qui divise la taille par ~3.
+    //
     // Un FASTQ d'entrée vide (barcode sans reads) n'est pas une erreur : on
     // produit un FASTQ vide pour que l'échantillon reste visible dans le
     // rapport avec 0 read, au lieu d'arrêter tout le run.
@@ -66,6 +74,7 @@ process CHOPPER {
             --threads ${task.cpus} \\
             --input "${fastq}" \\
             2> "${sample_id}_chopper.log" \\
+            | awk 'NR % 4 == 1 { print \$1; next } { print }' \\
             > "${sample_id}_filtered.fastq"
     fi
 

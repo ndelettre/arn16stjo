@@ -29,17 +29,24 @@ process SUBSAMPLE {
     tuple val(sample_id), path(fastq)
 
     output:
-    tuple val(sample_id), path("${sample_id}_emu_input.fastq"),    emit: reads
+    tuple val(sample_id), path("${sample_id}_emu_input.fastq"),    emit: reads, optional: true
     tuple val(sample_id), path("${sample_id}_subsample.tsv"),      emit: stats
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // LEÇON : avec --emu_max_reads 0 (tous les reads), le script ne fait que
+    // compter les reads : aucune copie du FASTQ n'est écrite (pas de sortie
+    // "reads", d'où optional: true) et main.nf donne directement à EMU les
+    // reads de l'étape précédente.
+    // ─────────────────────────────────────────────────────────────────────────
     script:
+    def output_opt = params.emu_max_reads ? "--output \"${sample_id}_emu_input.fastq\"" : ''
     """
     subsample_fastq.py \\
         --input "${fastq}" \\
         --max-reads ${params.emu_max_reads} \\
         --seed 42 \\
         --sample "${sample_id}" \\
-        --output "${sample_id}_emu_input.fastq" \\
+        ${output_opt} \\
         --stats "${sample_id}_subsample.tsv"
 
     cat "${sample_id}_subsample.tsv" >&2

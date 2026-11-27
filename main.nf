@@ -1,7 +1,7 @@
 #!/usr/bin/env nextflow
 /*
 ========================================================================================
-    ARN16StJo — PIPELINE 16S FULL-LENGTH NANOPORE (EMU)  v0.3.1
+    ARN16StJo — PIPELINE 16S FULL-LENGTH NANOPORE (EMU)  v0.3.2
     Compatible EPI2ME | Nextflow DSL2
 ========================================================================================
     WORKFLOW :
@@ -33,6 +33,8 @@ include { HOST_INDEX                    } from './modules/host_index.nf'        
 include { HOST_FILTER                   } from './modules/host_filter.nf'        // Alignement/retrait hôte
 include { HOST_INDEX_CLEANUP            } from './modules/host_index_cleanup.nf' // Suppression de l'index
 include { COMPRESS_FASTQ                } from './modules/compress_fastq.nf'     // Compression (pigz)
+include { DELETE_INTERMEDIATE as CLEANUP_CHOPPER } from './modules/delete_intermediate.nf' // Ménage work/
+include { DELETE_INTERMEDIATE as CLEANUP_NOHOST  } from './modules/delete_intermediate.nf' // Ménage work/
 include { SUBSAMPLE                     } from './modules/subsample.nf'     // Sous-échantillonnage
 include { EMU_ABUNDANCE                 } from './modules/emu_abundance.nf' // Classification EMU
 include { EMU_COMBINE                   } from './modules/emu_combine.nf'   // Tables multi-échantillons
@@ -59,7 +61,7 @@ workflow {
     // ── Bannière de démarrage ─────────────────────────────────────────────────
     log.info """
     ╔══════════════════════════════════════════════════════════╗
-    ║     ARN16StJo - 16S FULL-LENGTH NANOPORE (EMU)  v0.3.1   ║
+    ║     ARN16StJo - 16S FULL-LENGTH NANOPORE (EMU)  v0.3.2   ║
     ╚══════════════════════════════════════════════════════════╝
       Dossier FASTQ   : ${params.fastq_dir}
       Dossier sortie  : ${params.outdir}
@@ -210,7 +212,10 @@ workflow {
     // ── Sous-échantillonnage avant EMU ────────────────────────────────────────
     // EMU est très lent au-delà de quelques dizaines de milliers de reads :
     // on en tire au hasard au plus --emu_max_reads par échantillon (0 = tous).
+    // Avec 0, SUBSAMPLE ne fait que compter les reads (pas de copie) et EMU
+    // lit directement les reads de l'étape précédente.
     SUBSAMPLE(ch_reads_emu)
+    ch_emu_input = params.emu_max_reads ? SUBSAMPLE.out.reads : ch_reads_emu
 
     SUBSAMPLE.out.stats
         .map { _sample_id, stats -> stats }
@@ -219,7 +224,35 @@ workflow {
 
     // ── Classification taxonomique EMU ────────────────────────────────────────
     ch_emu_db = channel.fromPath(params.emu_db, type: 'dir', checkIfExists: true).first()
-    EMU_ABUNDANCE(SUBSAMPLE.out.reads, ch_emu_db)
+    EMU_ABUNDANCE(ch_emu_input, ch_emu_db)
+
+    // ── Ménage dans work/ : FASTQ intermédiaires supprimés dès que possible ──
+    // LEÇON : .join() associe, par nom d'échantillon, les sorties de plusieurs
+    // étapes : il n'émet un échantillon qu'une fois TOUTES ces étapes finies
+    // pour lui. On ne garde ensuite que le chemin du fichier à supprimer.
+    if (host_reference) {
+        CLEANUP_CHOPPER(
+            CHOPPER.out.reads
+                .join(NANOSTAT_FILTERED.out.stats)
+                .join(HOST_FILTER.out.stats)
+                .map { sample_id, reads, _nanostat, _host -> tuple(sample_id, reads) }
+        )
+        CLEANUP_NOHOST(
+            HOST_FILTER.out.reads
+                .join(COMPRESS_FASTQ.out.fastq_gz)
+                .join(SUBSAMPLE.out.stats)
+                .join(EMU_ABUNDANCE.out.abundance)
+                .map { sample_id, reads, _gz, _sub, _emu -> tuple(sample_id, reads) }
+        )
+    } else {
+        CLEANUP_CHOPPER(
+            CHOPPER.out.reads
+                .join(NANOSTAT_FILTERED.out.stats)
+                .join(SUBSAMPLE.out.stats)
+                .join(EMU_ABUNDANCE.out.abundance)
+                .map { sample_id, reads, _nanostat, _sub, _emu -> tuple(sample_id, reads) }
+        )
+    }
 
     ch_abundance_tables = EMU_ABUNDANCE.out.abundance
         .map { _sample_id, table -> table }

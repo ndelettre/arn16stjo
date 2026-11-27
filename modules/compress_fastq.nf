@@ -20,7 +20,10 @@ process COMPRESS_FASTQ {
     tag "${sample_id}"
     label 'process_compress'
 
-    publishDir "${params.resultsdir}/host_removed", mode: 'copy'
+    // LEÇON : mode 'move' déplace le fichier vers results/ au lieu de le
+    // copier : il n'existe pas en double. Possible car aucune étape suivante
+    // ne lit ce fichier.
+    publishDir "${params.resultsdir}/host_removed", mode: 'move'
 
     input:
     tuple val(sample_id), path(fastq)
