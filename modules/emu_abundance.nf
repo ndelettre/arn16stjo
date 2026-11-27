@@ -51,7 +51,11 @@ process EMU_ABUNDANCE {
     """
     set -euo pipefail
 
-    n_reads=\$(gzip -cd "${reads}" | awk 'END { print int(NR / 4) }')
+    if [[ "${reads}" == *.gz ]]; then
+        n_reads=\$(gzip -cd "${reads}" | awk 'END { print int(NR / 4) }')
+    else
+        n_reads=\$(awk 'END { print int(NR / 4) }' "${reads}")
+    fi
 
     if [ "\$n_reads" -eq 0 ]; then
         echo "Aucun read à classer pour ${sample_id}" > "${sample_id}_emu.log"
@@ -78,9 +82,11 @@ process EMU_ABUNDANCE {
         exit 1
     fi
 
-    # Les FASTQ de reads non classés (option) sont compressés
-    for fq in "${sample_id}"_*.fastq; do
-        if [ -e "\$fq" ]; then gzip "\$fq"; fi
+    # Les FASTQ de reads non classés (option) sont compressés. On ne vise que
+    # les fichiers écrits par EMU : l'entrée {sample_id}_emu_input.fastq (un
+    # lien vers l'étape précédente) a le même préfixe et ne doit pas être touchée.
+    for fq in "${sample_id}"_unmapped.fastq "${sample_id}"_unclassified_mapped*.fastq "${sample_id}"_filtered_mapped.fastq; do
+        if [ -f "\$fq" ] && [ ! -L "\$fq" ]; then gzip "\$fq"; fi
     done
 
     # Table complémentaire produite par EMU seulement si --min-abundance dépasse
