@@ -13,7 +13,9 @@
     alignement est fini, sans attendre les autres.
 
     Sorties :
-    - {sample_id}_nohost.fastq.gz → reads sans l'hôte (entrée d'EMU)
+    - {sample_id}_nohost.fastq    → reads sans l'hôte, non compressés (entrée du
+                                    sous-échantillonnage ; la copie publiée est
+                                    compressée à part par COMPRESS_FASTQ)
     - {sample_id}_host.tsv        → sample | reads_filtered | host_reads | host_pct | reads_nohost
 ========================================================================================
 */
@@ -23,14 +25,12 @@ process HOST_FILTER {
     tag "${sample_id}"
     label 'process_host_map'
 
-    publishDir "${params.resultsdir}/host_removed", mode: 'copy', pattern: "*_nohost.fastq.gz"
-
     input:
     tuple val(sample_id), path(fastq)
     path host_index     // index minimap2 (.mmi), commun à tous les échantillons
 
     output:
-    tuple val(sample_id), path("${sample_id}_nohost.fastq.gz"), emit: reads
+    tuple val(sample_id), path("${sample_id}_nohost.fastq"),    emit: reads
     tuple val(sample_id), path("${sample_id}_host.tsv"),        emit: stats
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -51,8 +51,7 @@ process HOST_FILTER {
     awk -F'\\t' '(\$4 - \$3) >= 0.5 * \$2 { print \$1 }' host.paf | sort -u > host_ids.txt
     rm -f host.paf
 
-    gzip -cd "${fastq}" \\
-    | awk -v ids=host_ids.txt -v sample="${sample_id}" -v stats="${sample_id}_host.tsv" '
+    awk -v ids=host_ids.txt -v sample="${sample_id}" -v stats="${sample_id}_host.tsv" '
         BEGIN { while ((getline id < ids) > 0) h[id] = 1 }
         NR % 4 == 1 { total++; keep = !(substr(\$1, 2) in h); if (!keep) host++ }
         keep { print }
@@ -61,8 +60,7 @@ process HOST_FILTER {
             print "sample\\treads_filtered\\thost_reads\\thost_pct\\treads_nohost" > stats
             printf "%s\\t%d\\t%d\\t%.2f\\t%d\\n", sample, total, host, pct, total - host > stats
         }
-      ' \\
-    | gzip > "${sample_id}_nohost.fastq.gz"
+      ' "${fastq}" > "${sample_id}_nohost.fastq"
 
     cat "${sample_id}_host.tsv" >&2
     """

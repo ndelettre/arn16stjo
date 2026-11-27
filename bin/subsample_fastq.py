@@ -40,7 +40,7 @@ def main():
     parser.add_argument("--max-reads", required=True, type=int, help="nombre maximal de reads (0 = tous)")
     parser.add_argument("--seed", type=int, default=42, help="graine du tirage aléatoire [42]")
     parser.add_argument("--sample", required=True, help="nom de l'échantillon")
-    parser.add_argument("--output", required=True, help="FASTQ de sortie (.fastq.gz)")
+    parser.add_argument("--output", required=True, help="FASTQ de sortie (.fastq, ou .fastq.gz pour compresser)")
     parser.add_argument("--stats", required=True, help="TSV récapitulatif")
     args = parser.parse_args()
 
@@ -50,7 +50,11 @@ def main():
         keep = set(random.Random(args.seed).sample(range(n_reads), args.max_reads))
     n_kept = args.max_reads if subsample else n_reads
 
-    with open_fastq(args.input) as fin, gzip.open(args.output, "wt", compresslevel=1) as fout:
+    if args.output.endswith(".gz"):
+        fout_handle = gzip.open(args.output, "wt", compresslevel=1)
+    else:
+        fout_handle = open(args.output, "w")
+    with open_fastq(args.input) as fin, fout_handle as fout:
         for index in range(n_reads):
             record = [next(fin) for _ in range(4)]
             if not subsample or index in keep:

@@ -15,7 +15,7 @@
     interne) portent sur les reads analysés, pas sur la totalité.
 
     Sorties :
-    - {sample_id}_emu_input.fastq.gz → reads analysés par EMU
+    - {sample_id}_emu_input.fastq    → reads analysés par EMU (non compressé)
     - {sample_id}_subsample.tsv      → sample | reads_nohost | reads_emu | subsampled
 ========================================================================================
 */
@@ -29,7 +29,7 @@ process SUBSAMPLE {
     tuple val(sample_id), path(fastq)
 
     output:
-    tuple val(sample_id), path("${sample_id}_emu_input.fastq.gz"), emit: reads
+    tuple val(sample_id), path("${sample_id}_emu_input.fastq"),    emit: reads
     tuple val(sample_id), path("${sample_id}_subsample.tsv"),      emit: stats
 
     script:
@@ -39,7 +39,7 @@ process SUBSAMPLE {
         --max-reads ${params.emu_max_reads} \\
         --seed 42 \\
         --sample "${sample_id}" \\
-        --output "${sample_id}_emu_input.fastq.gz" \\
+        --output "${sample_id}_emu_input.fastq" \\
         --stats "${sample_id}_subsample.tsv"
 
     cat "${sample_id}_subsample.tsv" >&2

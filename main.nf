@@ -1,7 +1,7 @@
 #!/usr/bin/env nextflow
 /*
 ========================================================================================
-    ARN16StJo — PIPELINE 16S FULL-LENGTH NANOPORE (EMU)  v0.3.0
+    ARN16StJo — PIPELINE 16S FULL-LENGTH NANOPORE (EMU)  v0.3.1
     Compatible EPI2ME | Nextflow DSL2
 ========================================================================================
     WORKFLOW :
@@ -32,6 +32,7 @@ include { NANOSTAT as NANOSTAT_FILTERED } from './modules/nanostat.nf' // QC rea
 include { HOST_INDEX                    } from './modules/host_index.nf'         // Index du génome hôte
 include { HOST_FILTER                   } from './modules/host_filter.nf'        // Alignement/retrait hôte
 include { HOST_INDEX_CLEANUP            } from './modules/host_index_cleanup.nf' // Suppression de l'index
+include { COMPRESS_FASTQ                } from './modules/compress_fastq.nf'     // Compression (pigz)
 include { SUBSAMPLE                     } from './modules/subsample.nf'     // Sous-échantillonnage
 include { EMU_ABUNDANCE                 } from './modules/emu_abundance.nf' // Classification EMU
 include { EMU_COMBINE                   } from './modules/emu_combine.nf'   // Tables multi-échantillons
@@ -58,7 +59,7 @@ workflow {
     // ── Bannière de démarrage ─────────────────────────────────────────────────
     log.info """
     ╔══════════════════════════════════════════════════════════╗
-    ║     ARN16StJo - 16S FULL-LENGTH NANOPORE (EMU)  v0.3.0   ║
+    ║     ARN16StJo - 16S FULL-LENGTH NANOPORE (EMU)  v0.3.1   ║
     ╚══════════════════════════════════════════════════════════╝
       Dossier FASTQ   : ${params.fastq_dir}
       Dossier sortie  : ${params.outdir}
@@ -184,6 +185,11 @@ workflow {
 
         HOST_FILTER(CHOPPER.out.reads, ch_host_index)
         ch_reads_emu   = HOST_FILTER.out.reads
+
+        // Copie compressée des reads sans l'hôte (results/host_removed/) :
+        // tâche séparée, en parallèle d'EMU. LEÇON : un même channel peut
+        // alimenter plusieurs process (ici COMPRESS_FASTQ et SUBSAMPLE).
+        COMPRESS_FASTQ(HOST_FILTER.out.reads)
         ch_host_stats  = HOST_FILTER.out.stats.map { _sample_id, stats -> stats }
 
         if (!host_reference.endsWith('.mmi')) {

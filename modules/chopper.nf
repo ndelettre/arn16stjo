@@ -10,7 +10,9 @@
     les fragments tronqués et les chimères/concatémères trop longs.
 
     Sorties :
-    - {sample_id}_filtered.fastq.gz → reads conservés
+    - {sample_id}_filtered.fastq    → reads conservés (non compressé : fichier
+                                      intermédiaire, rien n'est compressé entre
+                                      les étapes du pipeline)
     - {sample_id}_chopper.log       → "Kept X reads out of Y reads"
 ========================================================================================
 */
@@ -28,12 +30,14 @@ process CHOPPER {
     tuple val(sample_id), path(fastq)
 
     output:
-    tuple val(sample_id), path("${sample_id}_filtered.fastq.gz"), emit: reads
+    tuple val(sample_id), path("${sample_id}_filtered.fastq"),    emit: reads
     tuple val(sample_id), path("${sample_id}_chopper.log"),       emit: log
 
     // ─────────────────────────────────────────────────────────────────────────
     // LEÇON : Chopper lit directement les .fastq et .fastq.gz (option -i)
-    // et écrit les reads conservés sur stdout ; on les compresse avec gzip.
+    // et écrit les reads conservés sur stdout. On ne les compresse pas : la
+    // compression gzip (1 seul cœur) était l'étape la plus lente, et les
+    // étapes suivantes lisent aussi bien un FASTQ non compressé.
     // Son bilan ("Kept X reads out of Y reads") part sur stderr : on le
     // redirige dans le fichier log.
     //
@@ -53,7 +57,7 @@ process CHOPPER {
 
     if [ "\$n_bytes" -eq 0 ]; then
         echo "Kept 0 reads out of 0 reads" > "${sample_id}_chopper.log"
-        printf '' | gzip > "${sample_id}_filtered.fastq.gz"
+        : > "${sample_id}_filtered.fastq"
     else
         chopper \\
             --quality ${params.min_quality} \\
@@ -62,7 +66,7 @@ process CHOPPER {
             --threads ${task.cpus} \\
             --input "${fastq}" \\
             2> "${sample_id}_chopper.log" \\
-            | gzip > "${sample_id}_filtered.fastq.gz"
+            > "${sample_id}_filtered.fastq"
     fi
 
     cat "${sample_id}_chopper.log" >&2

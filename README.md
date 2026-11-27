@@ -2,7 +2,7 @@
 
 Pipeline Nextflow d'analyse du **16S full-length** séquencé sur **Oxford Nanopore** (R10.4.1), avec classification taxonomique par [EMU](https://github.com/treangenlab/emu) — compatible **EPI2ME Desktop**.
 
-> 🚧 Pipeline en cours de développement. Version actuelle : **0.3.0** (QC, retrait de l'hôte, classification EMU, rapport HTML).
+> 🚧 Pipeline en cours de développement. Version actuelle : **0.3.1** (QC, retrait de l'hôte, classification EMU, rapport HTML).
 
 ## Description
 
@@ -20,6 +20,7 @@ FASTQ ─┬─ NANOSTAT (reads bruts)
                                               REPORT (rapport HTML unique, tous échantillons)
 
 HOST_INDEX (index du génome hôte, une fois au début) ──→ HOST_FILTER ──→ HOST_INDEX_CLEANUP (suppression de l'index)
+                                                         └─→ COMPRESS_FASTQ (pigz, copie publiée des reads sans l'hôte)
 ```
 
 Étapes :
@@ -132,7 +133,7 @@ results/
 ├── host/
 │   └── host_summary.tsv                        # reads hôte par échantillon (nombre et %)
 ├── host_removed/
-│   └── {échantillon}_nohost.fastq.gz           # reads filtrés, sans l'hôte (entrée d'EMU)
+│   └── {échantillon}_nohost.fastq.gz           # reads filtrés, sans l'hôte (compressés par pigz)
 └── emu/
     ├── emu-combined-{species,genus,family}.tsv         # abondances relatives, tous échantillons
     ├── emu-combined-{species,genus,family}-counts.tsv  # nombres de reads estimés
@@ -150,6 +151,7 @@ output/
 ```
 
 Points à connaître :
+- **Aucune compression entre les étapes** : les FASTQ circulent non compressés entre Chopper, le retrait de l'hôte, le sous-échantillonnage et EMU (compresser/décompresser à chaque étape avec gzip, sur 1 cœur, était l'étape la plus lente). Seuls les FASTQ conservés (`results/host_removed/`) sont compressés, à la fin, par **pigz sur 4 cœurs**, dans une tâche qui tourne en parallèle d'EMU. Le dossier `work/` de Nextflow prend en contrepartie environ 3 fois plus de place pendant le run (ordre de grandeur : ~55 Go pour 8,6 millions de reads) : pensez à supprimer les `work/` des anciens runs.
 - **Reads hôte** : chaque échantillon est aligné séparément sur l'index du génome (10 cœurs par alignement, 2 en parallèle, chacun chargeant ~7-8 Go d'index en RAM). Un read est compté comme hôte si son alignement couvre au moins 50 % de sa longueur. L'index construit pendant le run étant supprimé à la fin, une relance avec `-resume` le reconstruit et refait les alignements sur l'hôte.
 - **Lignes non classées** : dans les tables EMU, `unmapped` = reads sans alignement sur la base 16S ; `mapped_filtered` et `mapped_unclassified` = reads alignés mais non attribués. Dans les tables `emu-combined-*`, ces reads sont regroupés sur la ligne sans nom de taxon.
 - **Échantillon sans read** (barcode vide, tout filtré, tout hôte, aucun read 16S) : le run continue, l'échantillon apparaît avec 0 read classé.
