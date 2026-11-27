@@ -182,5 +182,6 @@ Toutes les images sont figées sur une version exacte pour garantir la reproduct
 | NanoStat | `quay.io/biocontainers/nanostat:1.6.0--pyhdfd78af_0` |
 | Chopper | `quay.io/biocontainers/chopper:0.9.0--hdcf5f25_0` |
 | minimap2 (hôte) | `staphb/minimap2:2.31` |
+| pigz (compression finale) | `quay.io/biocontainers/pigz:2.8` |
 | EMU | `quay.io/biocontainers/emu:3.6.2--hdfd78af_0` |
 | Rapport (Python) | `nicolasdelettre/phyloreport:1.0.1` |
